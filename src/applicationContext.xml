@@ -1,0 +1,141 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:p="http://www.springframework.org/schema/p"
+	xmlns:context="http://www.springframework.org/schema/context"
+	xmlns:tx="http://www.springframework.org/schema/tx"
+	xmlns:mvc="http://www.springframework.org/schema/mvc"
+	xsi:schemaLocation="  
+    http://www.springframework.org/schema/beans   
+    http://www.springframework.org/schema/beans/spring-beans-3.1.xsd  
+    http://www.springframework.org/schema/tx 
+    http://www.springframework.org/schema/tx/spring-tx-3.1.xsd  
+    http://www.springframework.org/schema/context  
+    http://www.springframework.org/schema/context/spring-context-3.1.xsd  
+    http://www.springframework.org/schema/mvc  
+    http://www.springframework.org/schema/mvc/spring-mvc-3.1.xsd  
+    ">
+	<mvc:resources mapping="/img/**" location="/img/" />
+	<mvc:resources mapping="/js/**" location="/js/" />
+	<mvc:resources mapping="/css/**" location="/css/" />
+
+	<!-- 扫描所有的controller -->
+	<!-- 扫描并自动装配 -->
+	<context:component-scan base-package="cc.smh.common.dao" />
+	<context:component-scan base-package="cc.smh.dao" />
+	<context:component-scan base-package="cc.smh.common.service" />
+	<context:component-scan base-package="cc.smh.service" />
+	<context:component-scan base-package="cc.smh.action" />
+
+
+	<!-- 配置一个基于注解的定制的WebBindingInitializer，解决日期转换问题，方法级别的处理器映射， 有人说该bean要放在context:component-scan前面，要不然不起作用，但我试的放后面也可以啊。 -->
+	<bean
+		class="org.springframework.web.servlet.mvc.annotation.AnnotationMethodHandlerAdapter">
+		<property name="cacheSeconds" value="0" />
+		<property name="webBindingInitializer">
+			<bean class="cc.smh.filter.WebBinding" />
+		</property>
+	</bean>
+	<!-- 处理定义在controller类上的请求映射 -->
+	<bean
+		class="org.springframework.web.servlet.mvc.annotation.DefaultAnnotationHandlerMapping" />
+
+	<bean
+		class="org.springframework.web.servlet.mvc.SimpleControllerHandlerAdapter" />
+
+
+	<tx:annotation-driven />
+	<!-- InternalResourceViewResolver默认的就是JstlView所以这里就不用配置viewClass了 -->
+	<bean
+		class="org.springframework.web.servlet.view.InternalResourceViewResolver">
+		<property name="prefix" value="/WEB-INF/view/"></property>
+		<property name="suffix" value=".jsp"></property>
+	</bean>
+
+	<!-- 启用基于注解的处理器映射，添加拦截器，类级别的处理器映射 -->
+	<bean
+		class="org.springframework.web.servlet.mvc.annotation.DefaultAnnotationHandlerMapping">
+		<property name="interceptors">
+			<list>
+				<bean class="cc.smh.filter.HandlerInterceptor" />
+			</list>
+		</property>
+	</bean>
+	
+	
+	<bean id="propertyConfigurer"
+		class="org.springframework.beans.factory.config.PropertyPlaceholderConfigurer">
+		<property name="locations">
+			<list>
+				<value>jdbc.properties</value>
+			</list>
+		</property>
+	</bean>
+
+	<bean id="dataSource" class="com.mchange.v2.c3p0.ComboPooledDataSource">
+		<property name="driverClass" value="${jdbc.driverClassName}" />
+		<property name="jdbcUrl" value="${jdbc.url}" />
+		<property name="user" value="${jdbc.username}" />
+		<property name="password" value="${jdbc.password}" />
+		<property name="autoCommitOnClose" value="true" />
+		<property name="checkoutTimeout" value="${cpool.checkoutTimeout}" />
+		<property name="initialPoolSize" value="${cpool.minPoolSize}" />
+		<property name="minPoolSize" value="${cpool.minPoolSize}" />
+		<property name="maxPoolSize" value="${cpool.maxPoolSize}" />
+		<property name="maxIdleTime" value="${cpool.maxIdleTime}" />
+		<property name="acquireIncrement" value="${cpool.acquireIncrement}" />
+		<property name="maxIdleTimeExcessConnections" value="${cpool.maxIdleTimeExcessConnections}" />
+	</bean>
+	
+	<bean id="sessionFactory"
+		class="org.springframework.orm.hibernate4.LocalSessionFactoryBean">
+		<property name="dataSource" ref="dataSource"></property>
+		<property name="hibernateProperties">
+			<value>
+				hibernate.dialect=org.hibernate.dialect.MySQLInnoDBDialect
+				hibernate.show_sql=false
+				hibernate.format_sql=false
+				hibernate.query.substitutions=true 1, false 0
+				hibernate.jdbc.batch_size=20
+				hibernate.cache.use_query_cache=false
+			</value>
+		</property>
+		<!-- <property name="hibernateProperties"> <props> <prop key="hibernate.dialect"> 
+			org.hibernate.dialect.SQLServerDialect </prop> <prop key="hibernate.show_sql">true</prop> 
+			<prop key="hibernate.format_sql">true</prop> <prop key="hibernate.current_session_context_class">org.springframework.orm.hibernate4.SpringSessionContext</prop> 
+			hibernate.current_session_context_class 是hibernate 4使用session事物的模式 1: org.hibernate.context.internal.ThreadLocalSessionContext 
+			- 当前session通过当前执行的线程来跟踪和界定。 2: org.hibernate.context.internal.JTASessionContext- 
+			当前session根据JTA来跟踪和界定。这和以前的仅支持JTA的方法是完全一样的。 3：org.hibernate.context.internal.ManagedSessionContext 
+			使用spring时 默认是 ，用spring的事务管理 则用org.springframework.orm.hibernate4.SpringSessionContext 
+			<prop key="hibernate.cache.use_query_cache">true</prop> <prop key="hibernate.cache.use_second_level_cache"> 
+			true </prop> <prop key="hibernate.cache.provider_class"> org.hibernate.cache.internal.NoCacheProvider 
+			</prop> <prop key="hibernate.proxool.pool_alias">myDataSource</prop> <prop 
+			key="hibernate.proxool.xml">proxool.xml</prop> org.hibernate.cache.EhCacheProvider 
+			<prop key="hibernate.connection.provider_class"> org.hibernate.service.jdbc.connections.internal.ProxoolConnectionProvider 
+			</prop> <prop key="hibernate.cache.provider_class">net.sf.ehcache.hibernate.EhCacheProvider</prop> 
+			<prop key="hibernate.cache.region.factory_class">org.hibernate.cache.ehcache.EhCacheRegionFactory</prop> 
+			<prop key="hibernate.search.default.directory_provider">org.hibernate.search.store.FSDirectoryProvider</prop> 
+			<prop key="hibernate.search.default.indexBase">H:\indexed</prop> hibernate 
+			3.3以上 <property name="hibernate.cache.region.factory_class"> net.sf.ehcache.hibernate.EhCacheRegionFactory</property> 
+			或 <property name="hibernate.cache.region.factory_class"> net.sf.ehcache.hibernate.SingletonEhCacheRegionFactory</property> 
+			Hibernate 3.0 - 3.2 <property name="hibernate.cache.provider_class"> net.sf.ehcache.hibernate.EhCacheProvider</property> 
+			或 <property name="hibernate.cache.provider_class"> net.sf.ehcache.hibernate.SingletonEhCacheProvider</property> 
+			</props> </property> -->
+		<property name="packagesToScan">
+			<value>cc.smh.bean</value>
+		</property>
+	</bean>
+
+	<bean id="transactionManager"
+		class="org.springframework.orm.hibernate4.HibernateTransactionManager"
+		abstract="false" lazy-init="default" autowire="default">
+		<property name="sessionFactory">
+			<ref bean="sessionFactory" />
+		</property>
+	</bean>
+	
+	
+	
+	
+	
+	
+</beans>
